@@ -1,0 +1,151 @@
+<?php
+/**
+ * @file
+ * DoS Fixer Module file.
+ *
+ */
+
+/**
+ * Implements hook_help.
+ *
+ * Displays help and module information.
+ *
+ * @param path
+ *   Which path of the site we're using to display help
+ * @param arg
+ *   Array that holds the current path as returned from arg() function
+ */
+  function xmlimport_help($path, $arg) {
+    switch ($path) {
+      case "admin/help#xmlimport":
+        return '<p>' . t("This custom module performs miscellaneous tasks not appropriate for a contributed module.") . '</p>';
+        break;
+    }
+  }
+
+/**
+ * Implements hook_menu().
+ *
+ */
+  function xmlimport_menu() {
+    $items = array();
+    $items['admin/structure/xmlimport'] = array(
+      'title' => 'XML Import',
+      'description' => 'Import or change content using a data file.',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('xmlimport_admin_settings'),
+      'access arguments' => array('administer xmlimport'),
+      'file' => 'xmlimport.admin.inc',
+      'type' => MENU_NORMAL_ITEM,
+      //'type' => MENU_DEFAULT_LOCAL_TASK,
+    );
+
+    $items['admin/structure/xmlimport/settings'] = array(
+      'title' => 'Settings',
+      'description' => 'Set the variables to prepare for import.',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('xmlimport_admin_settings'),
+      'access arguments' => array('administer xmlimport'),
+      'file' => 'xmlimport.admin.inc',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'weight' => 0,
+    );
+
+/*
+    $items['admin/structure/xmlimport/node/add'] = array(
+      'title' => 'Node',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('custom_breadcrumbs_form', 'node'),
+      'access arguments' => array('administer custom breadcrumbs'),
+      'file' => 'custom_breadcrumbs.admin.inc',
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 1,
+    );
+*/
+    $items['xmlimport/run/%/%/%'] = array(
+      'title' => 'Run Import',
+      'description' => 'Parse and import an XML file.',
+      'page callback'=>'xmlimport_importer',
+      'page arguments' => array(2,3,4),
+      'access arguments' => array('use xmlimport'),
+      'file' => 'xmlimport.inc',
+      'type'=>MENU_CALLBACK,
+      //'weight' => 1,
+    );
+
+    return $items;
+  }
+
+/**
+ * Implements hook_permission().
+ *
+ */
+  function xmlimport_permission() {
+    return array(
+      'administer xmlimport' => array(
+        'title' => t('Administer XML Import'),
+        'description' => t('Administer the settings for XML Import.'),
+      ),
+       'use xmlimport' => array(
+        'title' => t('Change or import content'),
+        'description' => t('Import or change content using a data file.'),
+      ),
+   );
+  }
+
+/**
+ * Callback function for fixing node data.
+ *
+ * Parses all the nodes and makes logical corrections.
+ *
+ */
+  function xmlimport_importer($file = "", $offset_iterations = 0, $max_iterations = 100) {
+//drupal_set_message("Testing");
+    // SET CONSTANTS
+    $iteration_count = 0;
+    $changecount = 0;
+    $skipcount = 0;
+
+    print "<h1>XML Import</h1>\n";
+
+    if(empty($file)) $file = variable_get('xmlimport_file');
+    print "<p>FILE: '$file'<br />\n";
+    $data = xmlimport_unwrap(xmlimport_xml2array($file));
+    
+    print "DB: '" . $data['dbname'] . "'</br>\n";
+    print "Table: '" . $data['tablename'] . "' with " . number_format(count($data['rows']),0) . " rows.<br />\n";
+    print "Create entity if it is not found: " . ((variable_get('xmlimport_savenew')) ? "YES" : "NO" ) . "<br />\n";
+    print "Save changes to existing entities: " . ((variable_get('xmlimport_saveexisting')) ? "YES" : "NO" ) . "<br />\n";
+
+    print "</p>\n";
+    print "<hr />\n";
+        
+    $result = xmlimport_step($data['rows'], $offset_iterations, $max_iterations);
+    
+  }
+
+/**
+ * Basic string function to find a word in a string.
+ *
+ * More intelligent use of strpos for whole words or names.
+ *
+ */
+  function xmlimport_strpos($haystack, $needle, $capitalized = 0) {    
+    $pos = stripos($haystack,$needle);
+
+    if($pos===FALSE) return(FALSE);
+
+    // Confirm start of the word
+    if(ctype_alpha(substr($haystack, ($pos-1),1))) return(FALSE);
+
+    // Confirm end of the word
+    if(ctype_alpha(substr($haystack, ($pos+strlen($needle)), 1))) return(FALSE);
+
+    // Check for capitalization
+    if($capitalized) {
+      if(ctype_lower(substr($haystack, ($pos),1))) return(FALSE);
+    }
+
+    return($pos);
+  }
+

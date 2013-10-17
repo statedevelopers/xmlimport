@@ -1,0 +1,14 @@
+name = XML Import
+description = "Parses an XML data dump from a database to insert as nodes or entities."
+core = 7.x
+package = State Department
+
+files[] = xmlimport.admin.inc
+files[] = xmlimport.module
+files[] = xmlimport.inc
+files[] = xmlimport.locations.inc
+
+dependencies[] = entity
+
+
+
